@@ -1,0 +1,9 @@
+{
+  "name": "ai-voiceover",
+  "version": "1.0.0",
+  "description": "AI Voiceover: text to MP3 (Thai / English)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "msedge-tts": "latest" }
+}
