@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Voiceover</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f6fa;--card:#fff;--text:#14161f;--muted:#6b7280;--line:#e3e6ee;--accent:#4f46e5;--on:#fff;--soft:#eef0ff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1017;--card:#171a24;--text:#eef0f6;--muted:#9aa1b2;--line:#272b39;--accent:#8b93ff;--on:#0e1017;--soft:#222645}}
+:root[data-theme="dark"]{--bg:#0e1017;--card:#171a24;--text:#eef0f6;--muted:#9aa1b2;--line:#272b39;--accent:#8b93ff;--on:#0e1017;--soft:#222645}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans Thai',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+h1{font-size:26px;margin:0;letter-spacing:-.5px}
+.th{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;width:44px;height:44px;font-size:18px;cursor:pointer}
+.mode{font-size:13px;color:var(--muted);background:var(--soft);border-radius:10px;padding:8px 12px;margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.x{border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer;width:36px;height:36px;border-radius:10px}
+.x:hover{background:var(--soft)}
+textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--line);border-radius:14px;padding:14px;font:inherit;font-size:16px;background:transparent;color:var(--text)}
+textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.cnt{text-align:right;font-size:13px;color:var(--muted);margin:4px 2px 12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+select{font:inherit;font-size:16px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:48px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+button.b1,button.b2,a.b1{flex:1;min-width:150px;min-height:52px;border-radius:14px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid var(--accent)}
+.b1{background:var(--accent);color:var(--on)}
+.b2{background:var(--soft);color:var(--accent)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.res{margin-top:16px;padding-top:16px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:12px}
+.res audio{width:100%}
+.pl{display:flex;align-items:center;gap:12px;background:var(--soft);border-radius:14px;padding:10px 14px}
+.pl button{width:44px;height:44px;border-radius:50%;border:0;background:var(--accent);color:var(--on);font-size:16px;cursor:pointer;flex:none}
+.bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.add{width:100%;min-height:56px;border:2px dashed var(--line);background:transparent;color:var(--accent);border-radius:16px;font:inherit;font-size:16px;font-weight:600;cursor:pointer}
+.add:hover{background:var(--soft)}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media(max-width:480px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>🎙️ AI Voiceover</h1><button class="th" id="theme" aria-label="Dark / Light">🌙</button></header>
+  <p class="mode" id="mode"></p>
+  <div id="list"></div>
+  <button class="add" id="add">+ Add Voice</button>
+</div>
+<div id="toast"></div>
+<script>
+// ---- ตั้งค่า ----
+// ใส่ URL ของ TTS API ของคุณ: รับ POST JSON {text, voice, speed} แล้วตอบกลับเป็นไฟล์เสียง audio/mpeg
+const API_URL = '/api/tts';
+// เพิ่มเสียงใหม่ได้ที่นี่ (lang: th/en, gender: f/m)
+const VOICES = [
+  {id:'th-f', label:'Thai Female',    lang:'th', gender:'f'},
+  {id:'th-m', label:'Thai Male',      lang:'th', gender:'m'},
+  {id:'en-f', label:'English Female', lang:'en', gender:'f'},
+  {id:'en-m', label:'English Male',   lang:'en', gender:'m'}
+];
+const SPEEDS = ['0.75','1.0','1.25','1.5'];
+
+const $ = (s, r = document) => r.querySelector(s);
+const list = $('#list');
+const hasTTS = 'speechSynthesis' in window;
+let sys = [], cur = null, tok = 0, n = 0;
+
+$('#mode').textContent = API_URL ? 'เชื่อมต่อ TTS API แล้ว — สร้างและดาวน์โหลด MP3 ได้'
+  : 'โหมดทดลอง: ใช้เสียงจากเบราว์เซอร์ (ฟังได้ แต่ยังดาวน์โหลด MP3 ไม่ได้จนกว่าจะเชื่อมต่อ TTS API)';
+
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)}
+
+// ---- ธีม ----
+const root = document.documentElement;
+function setTheme(t){root.dataset.theme=t;$('#theme').textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('vo-theme',t)}catch(e){}}
+let saved=null;try{saved=localStorage.getItem('vo-theme')}catch(e){}
+setTheme(saved||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
+$('#theme').onclick=()=>setTheme(root.dataset.theme==='dark'?'light':'dark');
+
+// ---- เสียง ----
+if(hasTTS){const load=()=>{sys=speechSynthesis.getVoices()};load();speechSynthesis.onvoiceschanged=load}
+const FEM=/female|woman|premwadee|kanya|narisa|achara|zira|samantha|aria|jenny|susan|hazel|karen|moira|fiona|victoria/i;
+const MAL=/\bmale\b|\bman\b|niwat|pattara|david|mark|guy|george|daniel|alex|fred|ryan|thomas|james/i;
+function pick(v){
+  const L=sys.filter(s=>s.lang.toLowerCase().startsWith(v.lang));
+  const m=L.find(s=>(v.gender==='f'?FEM:MAL).test(s.name));
+  return {voice:m||L[0]||null,matched:!!m};
+}
+function stopAll(){
+  tok++; if(hasTTS) speechSynthesis.cancel();
+  if(cur){const h=cur;cur=null;h.end()}
+}
+function say(text,vid,rate,h){
+  if(!hasTTS){toast('เบราว์เซอร์นี้ไม่รองรับเสียงพูด');return}
+  stopAll();
+  const my=tok,v=VOICES.find(x=>x.id===vid),p=pick(v),u=new SpeechSynthesisUtterance(text);
+  if(p.voice){u.voice=p.voice;u.lang=p.voice.lang}else u.lang=v.lang==='th'?'th-TH':'en-US';
+  u.rate=parseFloat(rate);
+  if(!p.matched)u.pitch=v.gender==='m'?.7:1.15;
+  u.onboundary=e=>h.prog&&h.prog(e.charIndex/text.length);
+  u.onend=u.onerror=()=>{if(my===tok){cur=null;h.end()}};
+  cur=h;speechSynthesis.speak(u);h.start();
+}
+
+// ---- การ์ดข้อความ ----
+function addCard(){
+  n++;
+  const el=document.createElement('section');el.className='card';
+  el.innerHTML=`<div class="top"><b class="ttl"></b><button class="x" aria-label="ลบ" title="ลบ">✕</button></div>
+  <textarea placeholder="พิมพ์หรือวางข้อความที่นี่… / Type or paste your text here…"></textarea>
+  <div class="cnt"><span>0</span> ตัวอักษร</div>
+  <div class="row">
+    <label>Voice<select class="v">${VOICES.map(v=>`<option value="${v.id}">${v.label}</option>`).join('')}</select></label>
+    <label>Speed<select class="s">${SPEEDS.map(s=>`<option value="${s}"${s==='1.0'?' selected':''}>${s}x</option>`).join('')}</select></label>
+  </div>
+  <div class="btns"><button class="b2 pv">▶ Preview</button><button class="b1 gen">🔊 Generate Voice</button></div>
+  <div class="res" hidden></div>`;
+  const ta=$('textarea',el),cnt=$('.cnt span',el),vs=$('.v',el),sp=$('.s',el),pv=$('.pv',el),gen=$('.gen',el),res=$('.res',el);
+  vs.value=VOICES[(n-1)%VOICES.length].id;
+  ta.oninput=()=>cnt.textContent=ta.value.length.toLocaleString();
+
+  const pvh={start:()=>pv.textContent='■ Stop',end:()=>pv.textContent='▶ Preview'};
+  pv.onclick=()=>{
+    if(cur===pvh){stopAll();return}
+    if(!ta.value.trim())return toast('กรุณาพิมพ์ข้อความก่อน');
+    say(ta.value,vs.value,sp.value,pvh);
+  };
+
+  gen.onclick=async()=>{
+    const text=ta.value.trim(),vid=vs.value,rate=sp.value;
+    if(!text)return toast('กรุณาพิมพ์ข้อความก่อน');
+    stopAll();
+    res.hidden=false;
+    if(API_URL){
+      gen.disabled=true;gen.textContent='⏳ กำลังสร้างเสียง…';
+      try{
+        const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice:vid,speed:parseFloat(rate)})});
+        if(!r.ok)throw new Error();
+        const url=URL.createObjectURL(await r.blob()),no=[...list.children].indexOf(el)+1;
+        res.innerHTML=`<audio controls src="${url}"></audio><a class="b1" download="voiceover-scene${no}.mp3" href="${url}">⬇ Download MP3</a>`;
+      }catch(e){res.hidden=true;toast('สร้างเสียงไม่สำเร็จ ลองใหม่อีกครั้ง')}
+      gen.disabled=false;gen.textContent='🔊 Generate Voice';
+    }else{
+      res.innerHTML=`<div class="pl"><button class="play" aria-label="Play">▶</button><div class="bar"><i></i></div></div>
+      <button class="b1" disabled>⬇ Download MP3</button>
+      <p class="hint">โหมดทดลอง: ดาวน์โหลด MP3 ต้องตั้งค่า API_URL ในโค้ดให้ชี้ไปที่ TTS API</p>`;
+      const pb=$('.play',res),bar=$('.bar i',res);
+      const ph={start:()=>pb.textContent='❚❚',prog:r=>bar.style.width=(r*100)+'%',end:()=>{pb.textContent='▶';bar.style.width='0'}};
+      pb.onclick=()=>cur===ph?stopAll():say(text,vid,rate,ph);
+      pb.click();
+    }
+  };
+
+  $('.x',el).onclick=()=>{
+    if(list.children.length<2)return toast('ต้องมีอย่างน้อย 1 รายการ');
+    stopAll();el.remove();renum();
+  };
+  list.appendChild(el);renum();
+  if(n>1)el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renum(){[...list.children].forEach((c,i)=>$('.ttl',c).textContent='Scene '+(i+1))}
+$('#add').onclick=addCard;
+addCard();
+</script>
+</body>
+</html>
